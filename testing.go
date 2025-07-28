@@ -34,8 +34,13 @@ func (tf *TestFixture) SetupTest(yamlPaths ...string) {
 	}
 }
 
-// RunTest はトランザクション内でテストを実行する
-func (tf *TestFixture) RunTest(testFn func()) {
+// RunTest はトランザクション内でテストを実行する（フィクスチャ自動挿入）
+func (tf *TestFixture) RunTest(testFn func(tx *sql.Tx)) {
+	tf.RunTestWithSetup(nil, testFn)
+}
+
+// RunTestWithSetup はセットアップ（テーブル作成等）を行った後、フィクスチャを挿入してテストを実行する
+func (tf *TestFixture) RunTestWithSetup(setupFn func(tx *sql.Tx), testFn func(tx *sql.Tx)) {
 	tf.t.Helper()
 
 	// トランザクション開始
@@ -50,8 +55,39 @@ func (tf *TestFixture) RunTest(testFn func()) {
 		}
 	}()
 
-	// テストコードを実行（この中でInsertFixturesを呼ぶ）
-	testFn()
+	// セットアップ段階（テーブル作成等）
+	if setupFn != nil {
+		setupFn(tf.tx)
+	}
+
+	// フィクスチャデータを自動挿入
+	err = tf.InsertFixtures()
+	if err != nil {
+		tf.t.Fatalf("フィクスチャ挿入エラー: %v", err)
+	}
+
+	// テストコードを実行
+	testFn(tf.tx)
+}
+
+// RunTestWithCustomSetup は手動でフィクスチャ挿入タイミングを制御したい場合に使用する
+func (tf *TestFixture) RunTestWithCustomSetup(testFn func(tx *sql.Tx)) {
+	tf.t.Helper()
+
+	// トランザクション開始
+	err := tf.BeginTransaction()
+	if err != nil {
+		tf.t.Fatalf("トランザクション開始エラー: %v", err)
+	}
+
+	defer func() {
+		if tf.autoRollback {
+			tf.RollbackTransaction()
+		}
+	}()
+
+	// フィクスチャデータは自動挿入しない（手動制御）
+	testFn(tf.tx)
 }
 
 // InsertTestData はテスト内でフィクスチャデータを挿入する
