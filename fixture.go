@@ -38,7 +38,7 @@ func New(config Config) *Fixture {
 func (f *Fixture) LoadFromFile(filepath string) error {
 	data, err := os.ReadFile(filepath)
 	if err != nil {
-		return fmt.Errorf("YAMLファイルの読み込みエラー: %w", err)
+		return fmt.Errorf("failed to read YAML file: %w", err)
 	}
 
 	return f.LoadFromYAMLWithFilename(data, filepath)
@@ -63,13 +63,13 @@ func (f *Fixture) LoadFromYAMLWithFilename(data []byte, filename string) error {
 	// 単一テーブル形式を試行
 	var singleTableData []map[string]interface{}
 	if err := yaml.Unmarshal(data, &singleTableData); err != nil {
-		return fmt.Errorf("YAMLのパースエラー: %w", err)
+		return fmt.Errorf("failed to parse YAML: %w", err)
 	}
 
 	// ファイル名からテーブル名を推測
 	tableName := f.extractTableNameFromFilename(filename)
 	if tableName == "" {
-		return fmt.Errorf("テーブル名を推測できません。ファイル名を指定するか、複数テーブル形式を使用してください")
+		return fmt.Errorf("unable to determine table name: please specify filename or use multi-table format")
 	}
 
 	return f.loadSingleTableData(tableName, singleTableData)
@@ -156,12 +156,12 @@ func (f *Fixture) LoadFromDirectory(dirPath string) error {
 // BeginTransaction はトランザクションを開始する
 func (f *Fixture) BeginTransaction() error {
 	if f.tx != nil {
-		return fmt.Errorf("すでにトランザクションが開始されています")
+		return fmt.Errorf("transaction already started")
 	}
 
 	tx, err := f.db.Begin()
 	if err != nil {
-		return fmt.Errorf("トランザクション開始エラー: %w", err)
+		return fmt.Errorf("failed to start transaction: %w", err)
 	}
 
 	f.tx = tx
@@ -171,7 +171,7 @@ func (f *Fixture) BeginTransaction() error {
 // CommitTransaction はトランザクションをコミットする
 func (f *Fixture) CommitTransaction() error {
 	if f.tx == nil {
-		return fmt.Errorf("トランザクションが開始されていません")
+		return fmt.Errorf("transaction not started")
 	}
 
 	err := f.tx.Commit()
@@ -182,7 +182,7 @@ func (f *Fixture) CommitTransaction() error {
 // RollbackTransaction はトランザクションをロールバックする
 func (f *Fixture) RollbackTransaction() error {
 	if f.tx == nil {
-		return fmt.Errorf("トランザクションが開始されていません")
+		return fmt.Errorf("transaction not started")
 	}
 
 	err := f.tx.Rollback()
@@ -201,7 +201,7 @@ func (f *Fixture) InsertFixtures() error {
 		}
 
 		if err := f.insertTable(executor, tableName, records); err != nil {
-			return fmt.Errorf("テーブル %s への挿入エラー: %w", tableName, err)
+			return fmt.Errorf("failed to insert into table %s: %w", tableName, err)
 		}
 	}
 
@@ -292,7 +292,7 @@ func (f *Fixture) insertTable(executor Executor, tableName string, records []map
 		}
 
 		if _, err := executor.Exec(query, values...); err != nil {
-			return fmt.Errorf("レコード挿入エラー: %w", err)
+			return fmt.Errorf("failed to insert record: %w", err)
 		}
 	}
 

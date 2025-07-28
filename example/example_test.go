@@ -39,6 +39,7 @@ func TestSingleTableYAML(t *testing.T) {
 		},
 		func(tx *sql.Tx) {
 			// テスト段階（フィクスチャは自動挿入済み）
+			// ユーザーデータが正しく挿入されているかテスト
 			var count int
 			err = tx.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
 			if err != nil {
@@ -46,7 +47,7 @@ func TestSingleTableYAML(t *testing.T) {
 			}
 
 			if count != 2 {
-				t.Errorf("期待値: 2, 実際の値: %d", count)
+				t.Errorf("expected: 2, got: %d", count)
 			}
 
 			// 特定のユーザーをテスト
@@ -57,10 +58,10 @@ func TestSingleTableYAML(t *testing.T) {
 			}
 
 			if name != "山田太郎" {
-				t.Errorf("期待値: 山田太郎, 実際の値: %s", name)
+				t.Errorf("expected: 山田太郎, got: %s", name)
 			}
 			if email != "yamada@example.com" {
-				t.Errorf("期待値: yamada@example.com, 実際の値: %s", email)
+				t.Errorf("expected: yamada@example.com, got: %s", email)
 			}
 		},
 	)
@@ -111,7 +112,7 @@ func TestMultipleTableFiles(t *testing.T) {
 				t.Fatal(err)
 			}
 			if userCount != 2 {
-				t.Errorf("users テーブル - 期待値: 2, 実際の値: %d", userCount)
+				t.Errorf("users table - expected: 2, got: %d", userCount)
 			}
 
 			// postsテーブルのテスト
@@ -121,7 +122,7 @@ func TestMultipleTableFiles(t *testing.T) {
 				t.Fatal(err)
 			}
 			if postCount != 2 {
-				t.Errorf("posts テーブル - 期待値: 2, 実際の値: %d", postCount)
+				t.Errorf("posts table - expected: 2, got: %d", postCount)
 			}
 
 			// JOIN クエリのテスト
@@ -137,10 +138,10 @@ func TestMultipleTableFiles(t *testing.T) {
 			}
 
 			if title != "最初の投稿" {
-				t.Errorf("期待値: 最初の投稿, 実際の値: %s", title)
+				t.Errorf("expected: 最初の投稿, got: %s", title)
 			}
 			if userName != "山田太郎" {
-				t.Errorf("期待値: 山田太郎, 実際の値: %s", userName)
+				t.Errorf("expected: 山田太郎, got: %s", userName)
 			}
 		},
 	)

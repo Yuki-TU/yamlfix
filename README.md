@@ -108,9 +108,9 @@ func TestUserRepository(t *testing.T) {
                 t.Fatal(err)
             }
 
-            if len(users) != 2 {
-                t.Errorf("期待値: 2, 実際の値: %d", len(users))
-            }
+                    if len(users) != 2 {
+            t.Errorf("expected: 2, got: %d", len(users))
+        }
         },
     )
 }
@@ -223,7 +223,7 @@ func TestSimpleQuery(t *testing.T) {
         }
 
         if count != 2 {
-            t.Errorf("期待値: 2, 実際の値: %d", count)
+            t.Errorf("expected: 2, got: %d", count)
         }
     })
 }
@@ -277,7 +277,7 @@ func TestMultiTableFormat(t *testing.T) {
             tx.QueryRow("SELECT COUNT(*) FROM posts").Scan(&postCount)
             
             if userCount != 1 || postCount != 1 {
-                t.Errorf("期待値: users=1, posts=1, 実際の値: users=%d, posts=%d", userCount, postCount)
+                t.Errorf("expected: users=1, posts=1, got: users=%d, posts=%d", userCount, postCount)
             }
         },
     )

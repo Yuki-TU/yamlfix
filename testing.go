@@ -29,7 +29,7 @@ func (tf *TestFixture) SetupTest(yamlPaths ...string) {
 	// ファイルまたはディレクトリから読み込み
 	for _, path := range yamlPaths {
 		if err := tf.LoadFromFile(path); err != nil {
-			tf.t.Fatalf("フィクスチャの読み込みに失敗しました: %v", err)
+			tf.t.Fatalf("failed to load fixtures: %v", err)
 		}
 	}
 }
@@ -46,7 +46,7 @@ func (tf *TestFixture) RunTestWithSetup(setupFn func(tx *sql.Tx), testFn func(tx
 	// トランザクション開始
 	err := tf.BeginTransaction()
 	if err != nil {
-		tf.t.Fatalf("トランザクション開始エラー: %v", err)
+		tf.t.Fatalf("failed to start transaction: %v", err)
 	}
 
 	defer func() {
@@ -63,7 +63,7 @@ func (tf *TestFixture) RunTestWithSetup(setupFn func(tx *sql.Tx), testFn func(tx
 	// フィクスチャデータを自動挿入
 	err = tf.InsertFixtures()
 	if err != nil {
-		tf.t.Fatalf("フィクスチャ挿入エラー: %v", err)
+		tf.t.Fatalf("failed to insert fixtures: %v", err)
 	}
 
 	// テストコードを実行
@@ -77,7 +77,7 @@ func (tf *TestFixture) RunTestWithCustomSetup(testFn func(tx *sql.Tx)) {
 	// トランザクション開始
 	err := tf.BeginTransaction()
 	if err != nil {
-		tf.t.Fatalf("トランザクション開始エラー: %v", err)
+		tf.t.Fatalf("failed to start transaction: %v", err)
 	}
 
 	defer func() {
@@ -96,7 +96,7 @@ func (tf *TestFixture) InsertTestData() {
 
 	err := tf.InsertFixtures()
 	if err != nil {
-		tf.t.Fatalf("フィクスチャ挿入エラー: %v", err)
+		tf.t.Fatalf("failed to insert fixtures: %v", err)
 	}
 }
 
@@ -107,7 +107,7 @@ func (tf *TestFixture) ExecInTransaction(query string, args ...interface{}) {
 	executor := tf.getExecutor()
 	_, err := executor.Exec(query, args...)
 	if err != nil {
-		tf.t.Fatalf("SQL実行エラー: %v", err)
+		tf.t.Fatalf("failed to execute SQL: %v", err)
 	}
 }
 
@@ -118,7 +118,7 @@ func (tf *TestFixture) QueryInTransaction(query string, args ...interface{}) *sq
 	executor := tf.getExecutor()
 	rows, err := executor.Query(query, args...)
 	if err != nil {
-		tf.t.Fatalf("クエリ実行エラー: %v", err)
+		tf.t.Fatalf("failed to execute query: %v", err)
 	}
 	return rows
 }
@@ -146,6 +146,6 @@ func (tf *TestFixture) TearDownTest() {
 	tf.t.Helper()
 
 	if err := tf.CleanUp(); err != nil {
-		tf.t.Errorf("テストクリーンアップに失敗しました: %v", err)
+		tf.t.Errorf("failed to cleanup test: %v", err)
 	}
 }
