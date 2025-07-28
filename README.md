@@ -77,30 +77,42 @@ func TestUserRepository(t *testing.T) {
 
     repo := NewUserRepository()
 
-    fixture.RunTest(func() {
-        // テーブル作成
-        fixture.ExecInTransaction(`
-            CREATE TABLE users (
-                id INTEGER PRIMARY KEY,
-                name TEXT NOT NULL,
-                email TEXT NOT NULL,
-                created_at TEXT
-            )
-        `)
+    // セットアップとテストを分離した実行
+    fixture.RunTestWithSetup(
+        func(tx *sql.Tx) {
+            // セットアップ段階：テーブル作成
+            _, err := tx.Exec(`
+                CREATE TABLE users (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL,
+                    created_at TEXT
+                );
+                CREATE TABLE posts (
+                    id INTEGER PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    title TEXT NOT NULL,
+                    content TEXT,
+                    created_at TEXT,
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                );
+            `)
+            if err != nil {
+                t.Fatal(err)
+            }
+        },
+        func(tx *sql.Tx) {
+            // テスト段階：フィクスチャは自動挿入済み
+            users, err := repo.GetAllUsers(tx)
+            if err != nil {
+                t.Fatal(err)
+            }
 
-        // フィクスチャデータを挿入
-        fixture.InsertTestData()
-
-        // テスト実行
-        users, err := repo.GetAllUsers(fixture.GetTransaction())
-        if err != nil {
-            t.Fatal(err)
-        }
-
-        if len(users) != 2 {
-            t.Errorf("期待値: 2, 実際の値: %d", len(users))
-        }
-    })
+            if len(users) != 2 {
+                t.Errorf("期待値: 2, 実際の値: %d", len(users))
+            }
+        },
+    )
 }
 ```
 
@@ -128,57 +140,96 @@ func TestRepository(t *testing.T) {
     defer db.Close()
 
     fixture := yamlfix.NewTestFixture(t, db)
-    fixture.SetupTest()
+    fixture.SetupTest() // フィクスチャファイルが不要な場合
     defer fixture.TearDownTest()
 
     repo := NewRepository()
-    ctx := t.Context()
+    ctx := context.Background()
 
-    fixture.RunTest(func() {
-        // テーブル作成
-        fixture.ExecInTransaction(`
-            CREATE TABLE users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                email TEXT NOT NULL,
-                created_at DATETIME
-            )
-        `)
+    fixture.RunTestWithSetup(
+        func(tx *sql.Tx) {
+            // テーブル作成
+            _, err := tx.Exec(`
+                CREATE TABLE users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL,
+                    created_at DATETIME
+                )
+            `)
+            if err != nil {
+                t.Fatal(err)
+            }
+        },
+        func(tx *sql.Tx) {
+            // テーブルドリブンテスト
+            tests := []struct {
+                name string
+                user User
+            }{
+                {
+                    name: "正常なユーザー作成",
+                    user: User{Name: "山田太郎", Email: "yamada@example.com"},
+                },
+                {
+                    name: "日本語名のユーザー作成",
+                    user: User{Name: "田中花子", Email: "tanaka@example.com"},
+                },
+            }
 
-        tx := fixture.GetTransaction()
+            for _, tt := range tests {
+                t.Run(tt.name, func(t *testing.T) {
+                    created, err := repo.CreateUser(ctx, tx, tt.user)
+                    if err != nil {
+                        t.Fatalf("CreateUser() error = %v", err)
+                    }
 
-        // テーブルドリブンテスト
-        tests := []struct {
-            name string
-            user User
-        }{
-            {
-                name: "正常なユーザー作成",
-                user: User{Name: "山田太郎", Email: "yamada@example.com"},
-            },
-            {
-                name: "日本語名のユーザー作成",
-                user: User{Name: "田中花子", Email: "tanaka@example.com"},
-            },
+                    if created.ID == 0 {
+                        t.Error("IDが設定されていません")
+                    }
+                })
+            }
+        },
+    )
+}
+```
+
+### 4. シンプルなテスト（テーブル既存の場合）
+
+```go
+func TestSimpleQuery(t *testing.T) {
+    db, err := sql.Open("sqlite3", ":memory:")
+    if err != nil {
+        t.Fatal(err)
+    }
+    defer db.Close()
+
+    // 事前にテーブルを作成済みの場合
+    _, err = db.Exec(`CREATE TABLE users (id INTEGER, name TEXT, email TEXT)`)
+    if err != nil {
+        t.Fatal(err)
+    }
+
+    fixture := yamlfix.NewTestFixture(t, db)
+    fixture.SetupTest("testdata/users.yaml")
+    defer fixture.TearDownTest()
+
+    // フィクスチャが自動挿入されてテスト実行
+    fixture.RunTest(func(tx *sql.Tx) {
+        var count int
+        err := tx.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
+        if err != nil {
+            t.Fatal(err)
         }
 
-        for _, tt := range tests {
-            t.Run(tt.name, func(t *testing.T) {
-                created, err := repo.CreateUser(ctx, tx, tt.user)
-                if err != nil {
-                    t.Fatalf("CreateUser() error = %v", err)
-                }
-
-                if created.ID == 0 {
-                    t.Error("IDが設定されていません")
-                }
-            })
+        if count != 2 {
+            t.Errorf("期待値: 2, 実際の値: %d", count)
         }
     })
 }
 ```
 
-### 4. 複数テーブル形式（互換性サポート）
+### 5. 複数テーブル形式（互換性サポート）
 
 ```yaml
 # testdata/multi_table.yaml
@@ -196,6 +247,43 @@ posts:
     created_at: "2023-01-01 12:00:00"
 ```
 
+```go
+func TestMultiTableFormat(t *testing.T) {
+    db, err := sql.Open("sqlite3", ":memory:")
+    if err != nil {
+        t.Fatal(err)
+    }
+    defer db.Close()
+
+    fixture := yamlfix.NewTestFixture(t, db)
+    fixture.SetupTest("testdata/multi_table.yaml")
+    defer fixture.TearDownTest()
+
+    fixture.RunTestWithSetup(
+        func(tx *sql.Tx) {
+            // テーブル作成
+            _, err := tx.Exec(`
+                CREATE TABLE users (id INTEGER, name TEXT, email TEXT, created_at TEXT);
+                CREATE TABLE posts (id INTEGER, user_id INTEGER, title TEXT, content TEXT, created_at TEXT);
+            `)
+            if err != nil {
+                t.Fatal(err)
+            }
+        },
+        func(tx *sql.Tx) {
+            // フィクスチャは自動挿入済み
+            var userCount, postCount int
+            tx.QueryRow("SELECT COUNT(*) FROM users").Scan(&userCount)
+            tx.QueryRow("SELECT COUNT(*) FROM posts").Scan(&postCount)
+            
+            if userCount != 1 || postCount != 1 {
+                t.Errorf("期待値: users=1, posts=1, 実際の値: users=%d, posts=%d", userCount, postCount)
+            }
+        },
+    )
+}
+```
+
 ## 📚 API リファレンス
 
 ### TestFixture（推奨）
@@ -207,29 +295,97 @@ func NewTestFixture(t *testing.T, db *sql.DB) *TestFixture
 // テストセットアップ（YAMLファイルを読み込み）
 func (tf *TestFixture) SetupTest(yamlPaths ...string)
 
-// トランザクション内でテスト実行
-func (tf *TestFixture) RunTest(testFn func())
+// トランザクション内でテスト実行（フィクスチャ自動挿入）
+func (tf *TestFixture) RunTest(testFn func(tx *sql.Tx))
 
-// フィクスチャデータを挿入
+// セットアップ後、フィクスチャを挿入してテスト実行
+func (tf *TestFixture) RunTestWithSetup(setupFn func(tx *sql.Tx), testFn func(tx *sql.Tx))
+
+// 手動でフィクスチャ挿入タイミングを制御
+func (tf *TestFixture) RunTestWithCustomSetup(testFn func(tx *sql.Tx))
+
+// フィクスチャデータを手動挿入（通常は不要）
 func (tf *TestFixture) InsertTestData()
-
-// トランザクション内でSQLを実行
-func (tf *TestFixture) ExecInTransaction(query string, args ...interface{})
-
-// トランザクション内でクエリを実行
-func (tf *TestFixture) QueryInTransaction(query string, args ...interface{}) *sql.Rows
-
-// トランザクション内で単一行クエリを実行
-func (tf *TestFixture) QueryRowInTransaction(query string, args ...interface{}) *sql.Row
-
-// トランザクションインスタンスを取得（リポジトリパターン用）
-func (tf *TestFixture) GetTransaction() *sql.Tx
 
 // トランザクションが開始されているかを確認
 func (tf *TestFixture) HasTransaction() bool
 
+// トランザクションインスタンスを取得（高度な用途）
+func (tf *TestFixture) GetTransaction() *sql.Tx
+
 // テストクリーンアップ
 func (tf *TestFixture) TearDownTest()
+```
+
+**廃止予定のメソッド（互換性のため残存）**
+```go
+// 非推奨：RunTestWithSetupまたはRunTestを使用してください
+func (tf *TestFixture) ExecInTransaction(query string, args ...interface{})
+func (tf *TestFixture) QueryInTransaction(query string, args ...interface{}) *sql.Rows
+func (tf *TestFixture) QueryRowInTransaction(query string, args ...interface{}) *sql.Row
+```
+
+## 🎯 使い方のベストプラクティス
+
+### 新しいAPI（推奨）
+
+```go
+// 1. シンプルなケース（テーブル既存）
+fixture.RunTest(func(tx *sql.Tx) {
+    // フィクスチャ自動挿入済み
+    // テストコードのみ記述
+})
+
+// 2. セットアップが必要なケース
+fixture.RunTestWithSetup(
+    func(tx *sql.Tx) {
+        // テーブル作成・セットアップ
+    },
+    func(tx *sql.Tx) {
+        // フィクスチャ自動挿入済み
+        // テストコード
+    },
+)
+
+// 3. 複雑な制御が必要なケース
+fixture.RunTestWithCustomSetup(func(tx *sql.Tx) {
+    // テーブル作成
+    // 手動でフィクスチャ挿入
+    fixture.InsertTestData()
+    // テストコード
+})
+```
+
+### 🆚 新旧API比較
+
+| 項目                 | 旧API                           | 新API              |
+| -------------------- | ------------------------------- | ------------------ |
+| フィクスチャ挿入     | `fixture.InsertTestData()` 必須 | 自動実行           |
+| トランザクション取得 | `fixture.GetTransaction()`      | 引数で直接受け取り |
+| SQL実行              | `fixture.ExecInTransaction()`   | `tx.Exec()`        |
+| エラーハンドリング   | ヘルパーメソッド内で自動        | 明示的制御         |
+| 可読性               | 冗長                            | 簡潔               |
+| 柔軟性               | 限定的                          | 高い               |
+
+### 💡 移行ガイド
+
+```go
+// 旧API
+fixture.RunTest(func() {
+    fixture.ExecInTransaction("CREATE TABLE ...")
+    fixture.InsertTestData()
+    rows := fixture.QueryInTransaction("SELECT ...")
+})
+
+// 新API
+fixture.RunTestWithSetup(
+    func(tx *sql.Tx) {
+        tx.Exec("CREATE TABLE ...")
+    },
+    func(tx *sql.Tx) {
+        rows, _ := tx.Query("SELECT ...")
+    },
+)
 ```
 
 ### Fixture（低レベルAPI）
