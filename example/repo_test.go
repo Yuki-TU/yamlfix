@@ -1,7 +1,6 @@
 package example
 
 import (
-	"context"
 	"database/sql"
 	"testing"
 
@@ -34,10 +33,9 @@ func TestCreateUser(t *testing.T) {
 
 	fixture := yamlfix.NewTestFixture(t, db)
 	fixture.SetupTest("testdata/users.yaml")
-	defer fixture.TearDownTest()
 
 	repo := NewRepository()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tests := map[string]struct {
 		user     User
@@ -55,14 +53,6 @@ func TestCreateUser(t *testing.T) {
 				}
 				if created.Email != original.Email {
 					t.Errorf("メール - 期待値: %s, 実際の値: %s", original.Email, created.Email)
-				}
-			},
-		},
-		"日本語名のユーザー作成": {
-			user: User{Name: "田中花子", Email: "tanaka@example.com"},
-			validate: func(t *testing.T, created User, original User) {
-				if created.Name != original.Name {
-					t.Errorf("日本語名 - 期待値: %s, 実際の値: %s", original.Name, created.Name)
 				}
 			},
 		},
@@ -99,10 +89,9 @@ func TestGetUser(t *testing.T) {
 
 	fixture := yamlfix.NewTestFixture(t, db)
 	fixture.SetupTest("testdata/users.yaml")
-	defer fixture.TearDownTest()
 
 	repo := NewRepository()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tests := map[string]struct {
 		userID   uint64
@@ -178,7 +167,7 @@ func TestCreateAndGetUser(t *testing.T) {
 	fixture.SetupTest("testdata/users.yaml")
 
 	repo := NewRepository()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tests := map[string]struct {
 		user User

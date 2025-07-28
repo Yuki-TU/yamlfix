@@ -20,7 +20,6 @@ func TestSingleTableYAML(t *testing.T) {
 	// テストフィクスチャの初期化
 	fixture := yamlfix.NewTestFixture(t, db)
 	fixture.SetupTest("testdata/users.yaml")
-	defer fixture.TearDownTest()
 
 	// セットアップとテストを分離した実行
 	fixture.RunTestWithSetup(
@@ -78,7 +77,6 @@ func TestMultipleTableFiles(t *testing.T) {
 	// テストフィクスチャの初期化
 	fixture := yamlfix.NewTestFixture(t, db)
 	fixture.SetupTest("testdata/users.yaml", "testdata/posts.yaml")
-	defer fixture.TearDownTest()
 
 	fixture.RunTestWithSetup(
 		func(tx *sql.Tx) {
