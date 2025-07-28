@@ -1,37 +1,39 @@
-# YamlFix - Go言語用YAMLフィクスチャライブラリ
+# YamlFix - YAML Fixture Library for Go
 
-YamlFixは、Go言語でYAMLファイルをテストフィクスチャとして利用できるライブラリです。テスト単位でトランザクション管理し、テスト後の自動ロールバック機能を提供します。
+[🇯🇵 日本語](README.ja.md) | 🇺🇸 English
 
-## 🚀 特徴
+YamlFix is a Go library that enables using YAML files as test fixtures. It provides transaction management per test and automatic rollback functionality after tests.
 
-- 📁 **YAMLファイルからテストデータを読み込み** - テーブル名.yaml形式をサポート
-- 🔄 **テスト単位でのトランザクション管理** - `GetTransaction()`で直接アクセス可能
-- 🔙 **自動ロールバック機能** - テスト後に自動的にデータをクリーンアップ
-- 🗂️ **複数テーブルの関連データ対応** - 外部キー制約にも対応
-- 🧪 **テスト用ヘルパー関数** - テーブルドリブンテストに最適
-- ⚡ **シンプルなAPI** - 最小限のコードでテスト環境を構築
+## 🚀 Features
 
-## 📦 インストール
+- 📁 **Load test data from YAML files** - Supports table_name.yaml format
+- 🔄 **Transaction management per test** - Direct access via `GetTransaction()`
+- 🔙 **Automatic rollback functionality** - Automatically cleans up data after tests
+- 🗂️ **Support for related data across multiple tables** - Works with foreign key constraints
+- 🧪 **Test helper functions** - Optimized for table-driven tests
+- ⚡ **Simple API** - Build test environments with minimal code
+
+## 📦 Installation
 
 ```bash
 go get github.com/Yuki-TU/yamlfix
 ```
 
-## 🔧 基本的な使用方法
+## 🔧 Basic Usage
 
-### 1. YAMLフィクスチャファイルの作成
+### 1. Create YAML fixture files
 
-テーブル名.yaml形式でファイルを作成します：
+Create files in table_name.yaml format:
 
 ```yaml
 # testdata/users.yaml
 - id: 1
-  name: "山田太郎"
-  email: "yamada@example.com"
+  name: "John Doe"
+  email: "john@example.com"
   created_at: "2023-01-01 10:00:00"
 - id: 2
-  name: "田中花子"
-  email: "tanaka@example.com"
+  name: "Jane Smith"
+  email: "jane@example.com"
   created_at: "2023-01-02 11:00:00"
 ```
 
@@ -39,17 +41,17 @@ go get github.com/Yuki-TU/yamlfix
 # testdata/posts.yaml
 - id: 1
   user_id: 1
-  title: "最初の投稿"
-  content: "これは最初の投稿です"
+  title: "First Post"
+  content: "This is the first post"
   created_at: "2023-01-01 12:00:00"
 - id: 2
   user_id: 2
-  title: "二番目の投稿"
-  content: "これは二番目の投稿です"
+  title: "Second Post"
+  content: "This is the second post"
   created_at: "2023-01-02 13:00:00"
 ```
 
-### 2. 基本的なテスト
+### 2. Basic Test
 
 ```go
 package main
@@ -63,24 +65,23 @@ import (
 )
 
 func TestUserRepository(t *testing.T) {
-    // SQLiteのメモリデータベースを使用
+    // Use SQLite in-memory database
     db, err := sql.Open("sqlite3", ":memory:")
     if err != nil {
         t.Fatal(err)
     }
     defer db.Close()
 
-    // テストフィクスチャの初期化
+    // Initialize test fixture
     fixture := yamlfix.NewTestFixture(t, db)
     fixture.SetupTest("testdata/users.yaml", "testdata/posts.yaml")
-    defer fixture.TearDownTest()
 
     repo := NewUserRepository()
 
-    // セットアップとテストを分離した実行
+    // Execute with setup and test separation
     fixture.RunTestWithSetup(
         func(tx *sql.Tx) {
-            // セットアップ段階：テーブル作成
+            // Setup phase: Create tables
             _, err := tx.Exec(`
                 CREATE TABLE users (
                     id INTEGER PRIMARY KEY,
@@ -102,21 +103,21 @@ func TestUserRepository(t *testing.T) {
             }
         },
         func(tx *sql.Tx) {
-            // テスト段階：フィクスチャは自動挿入済み
+            // Test phase: Fixtures are automatically inserted
             users, err := repo.GetAllUsers(tx)
             if err != nil {
                 t.Fatal(err)
             }
 
-                    if len(users) != 2 {
-            t.Errorf("expected: 2, got: %d", len(users))
-        }
+            if len(users) != 2 {
+                t.Errorf("expected: 2, got: %d", len(users))
+            }
         },
     )
 }
 ```
 
-### 3. リポジトリパターンでの使用
+### 3. Repository Pattern Usage
 
 ```go
 type Repository struct{}
@@ -140,15 +141,14 @@ func TestRepository(t *testing.T) {
     defer db.Close()
 
     fixture := yamlfix.NewTestFixture(t, db)
-    fixture.SetupTest() // フィクスチャファイルが不要な場合
-    defer fixture.TearDownTest()
+    fixture.SetupTest() // No fixture files needed for this case
 
     repo := NewRepository()
     ctx := context.Background()
 
     fixture.RunTestWithSetup(
         func(tx *sql.Tx) {
-            // テーブル作成
+            // Create tables
             _, err := tx.Exec(`
                 CREATE TABLE users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -162,30 +162,27 @@ func TestRepository(t *testing.T) {
             }
         },
         func(tx *sql.Tx) {
-            // テーブルドリブンテスト
-            tests := []struct {
-                name string
+            // Table-driven tests
+            tests := map[string]struct {
                 user User
             }{
-                {
-                    name: "正常なユーザー作成",
-                    user: User{Name: "山田太郎", Email: "yamada@example.com"},
+                "normal user creation": {
+                    user: User{Name: "John Doe", Email: "john@example.com"},
                 },
-                {
-                    name: "日本語名のユーザー作成",
+                "user with Japanese name": {
                     user: User{Name: "田中花子", Email: "tanaka@example.com"},
                 },
             }
 
-            for _, tt := range tests {
-                t.Run(tt.name, func(t *testing.T) {
+            for name, tt := range tests {
+                t.Run(name, func(t *testing.T) {
                     created, err := repo.CreateUser(ctx, tx, tt.user)
                     if err != nil {
                         t.Fatalf("CreateUser() error = %v", err)
                     }
 
                     if created.ID == 0 {
-                        t.Error("IDが設定されていません")
+                        t.Error("ID not set")
                     }
                 })
             }
@@ -194,7 +191,7 @@ func TestRepository(t *testing.T) {
 }
 ```
 
-### 4. シンプルなテスト（テーブル既存の場合）
+### 4. Simple Test (When tables already exist)
 
 ```go
 func TestSimpleQuery(t *testing.T) {
@@ -204,7 +201,7 @@ func TestSimpleQuery(t *testing.T) {
     }
     defer db.Close()
 
-    // 事前にテーブルを作成済みの場合
+    // Create tables beforehand
     _, err = db.Exec(`CREATE TABLE users (id INTEGER, name TEXT, email TEXT)`)
     if err != nil {
         t.Fatal(err)
@@ -212,9 +209,8 @@ func TestSimpleQuery(t *testing.T) {
 
     fixture := yamlfix.NewTestFixture(t, db)
     fixture.SetupTest("testdata/users.yaml")
-    defer fixture.TearDownTest()
 
-    // フィクスチャが自動挿入されてテスト実行
+    // Fixtures are automatically inserted and test is executed
     fixture.RunTest(func(tx *sql.Tx) {
         var count int
         err := tx.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
@@ -229,21 +225,21 @@ func TestSimpleQuery(t *testing.T) {
 }
 ```
 
-### 5. 複数テーブル形式（互換性サポート）
+### 5. Multi-table Format (Compatibility Support)
 
 ```yaml
 # testdata/multi_table.yaml
 users:
   - id: 1
-    name: "山田太郎"
-    email: "yamada@example.com"
+    name: "John Doe"
+    email: "john@example.com"
     created_at: "2023-01-01 10:00:00"
 
 posts:
   - id: 1
     user_id: 1
-    title: "最初の投稿"
-    content: "これは最初の投稿です"
+    title: "First Post"
+    content: "This is the first post"
     created_at: "2023-01-01 12:00:00"
 ```
 
@@ -257,11 +253,10 @@ func TestMultiTableFormat(t *testing.T) {
 
     fixture := yamlfix.NewTestFixture(t, db)
     fixture.SetupTest("testdata/multi_table.yaml")
-    defer fixture.TearDownTest()
 
     fixture.RunTestWithSetup(
         func(tx *sql.Tx) {
-            // テーブル作成
+            // Create tables
             _, err := tx.Exec(`
                 CREATE TABLE users (id INTEGER, name TEXT, email TEXT, created_at TEXT);
                 CREATE TABLE posts (id INTEGER, user_id INTEGER, title TEXT, content TEXT, created_at TEXT);
@@ -271,7 +266,7 @@ func TestMultiTableFormat(t *testing.T) {
             }
         },
         func(tx *sql.Tx) {
-            // フィクスチャは自動挿入済み
+            // Fixtures are automatically inserted
             var userCount, postCount int
             tx.QueryRow("SELECT COUNT(*) FROM users").Scan(&userCount)
             tx.QueryRow("SELECT COUNT(*) FROM posts").Scan(&postCount)
@@ -284,100 +279,100 @@ func TestMultiTableFormat(t *testing.T) {
 }
 ```
 
-## 📚 API リファレンス
+## 📚 API Reference
 
-### TestFixture（推奨）
+### TestFixture (Recommended)
 
 ```go
-// テスト用の新しいFixtureインスタンスを作成
+// Create a new TestFixture instance for testing
 func NewTestFixture(t *testing.T, db *sql.DB) *TestFixture
 
-// テストセットアップ（YAMLファイルを読み込み）
+// Test setup (load YAML files)
 func (tf *TestFixture) SetupTest(yamlPaths ...string)
 
-// トランザクション内でテスト実行（フィクスチャ自動挿入）
+// Execute test within transaction (automatic fixture insertion)
 func (tf *TestFixture) RunTest(testFn func(tx *sql.Tx))
 
-// セットアップ後、フィクスチャを挿入してテスト実行
+// Execute test after setup with fixture insertion
 func (tf *TestFixture) RunTestWithSetup(setupFn func(tx *sql.Tx), testFn func(tx *sql.Tx))
 
-// 手動でフィクスチャ挿入タイミングを制御
+// Manual control of fixture insertion timing
 func (tf *TestFixture) RunTestWithCustomSetup(testFn func(tx *sql.Tx))
 
-// フィクスチャデータを手動挿入（通常は不要）
+// Manual fixture data insertion (usually not needed)
 func (tf *TestFixture) InsertTestData()
 
-// トランザクションが開始されているかを確認
+// Check if transaction is started
 func (tf *TestFixture) HasTransaction() bool
 
-// トランザクションインスタンスを取得（高度な用途）
+// Get transaction instance (for advanced use)
 func (tf *TestFixture) GetTransaction() *sql.Tx
 
-// テストクリーンアップ
+// Test cleanup
 func (tf *TestFixture) TearDownTest()
 ```
 
-**廃止予定のメソッド（互換性のため残存）**
+**Deprecated Methods (kept for compatibility)**
 ```go
-// 非推奨：RunTestWithSetupまたはRunTestを使用してください
+// Deprecated: Use RunTestWithSetup or RunTest instead
 func (tf *TestFixture) ExecInTransaction(query string, args ...interface{})
 func (tf *TestFixture) QueryInTransaction(query string, args ...interface{}) *sql.Rows
 func (tf *TestFixture) QueryRowInTransaction(query string, args ...interface{}) *sql.Row
 ```
 
-## 🎯 使い方のベストプラクティス
+## 🎯 Best Practices
 
-### 新しいAPI（推奨）
+### New API (Recommended)
 
 ```go
-// 1. シンプルなケース（テーブル既存）
+// 1. Simple case (tables already exist)
 fixture.RunTest(func(tx *sql.Tx) {
-    // フィクスチャ自動挿入済み
-    // テストコードのみ記述
+    // Fixtures automatically inserted
+    // Write test code only
 })
 
-// 2. セットアップが必要なケース
+// 2. Case requiring setup
 fixture.RunTestWithSetup(
     func(tx *sql.Tx) {
-        // テーブル作成・セットアップ
+        // Table creation and setup
     },
     func(tx *sql.Tx) {
-        // フィクスチャ自動挿入済み
-        // テストコード
+        // Fixtures automatically inserted
+        // Test code
     },
 )
 
-// 3. 複雑な制御が必要なケース
+// 3. Case requiring complex control
 fixture.RunTestWithCustomSetup(func(tx *sql.Tx) {
-    // テーブル作成
-    // 手動でフィクスチャ挿入
+    // Table creation
+    // Manual fixture insertion
     fixture.InsertTestData()
-    // テストコード
+    // Test code
 })
 ```
 
-### 🆚 新旧API比較
+### 🆚 Old vs New API Comparison
 
-| 項目                 | 旧API                           | 新API              |
-| -------------------- | ------------------------------- | ------------------ |
-| フィクスチャ挿入     | `fixture.InsertTestData()` 必須 | 自動実行           |
-| トランザクション取得 | `fixture.GetTransaction()`      | 引数で直接受け取り |
-| SQL実行              | `fixture.ExecInTransaction()`   | `tx.Exec()`        |
-| エラーハンドリング   | ヘルパーメソッド内で自動        | 明示的制御         |
-| 可読性               | 冗長                            | 簡潔               |
-| 柔軟性               | 限定的                          | 高い               |
+| Feature            | Old API                             | New API          |
+| ------------------ | ----------------------------------- | ---------------- |
+| Fixture Insertion  | `fixture.InsertTestData()` required | Automatic        |
+| Transaction Access | `fixture.GetTransaction()`          | Direct parameter |
+| SQL Execution      | `fixture.ExecInTransaction()`       | `tx.Exec()`      |
+| Error Handling     | Automatic in helper methods         | Explicit control |
+| Readability        | Verbose                             | Concise          |
+| Flexibility        | Limited                             | High             |
 
-### 💡 移行ガイド
+### 💡 Migration Guide
 
 ```go
-// 旧API
+// Old API
 fixture.RunTest(func() {
     fixture.ExecInTransaction("CREATE TABLE ...")
     fixture.InsertTestData()
     rows := fixture.QueryInTransaction("SELECT ...")
 })
 
-// 新API
+// New API
 fixture.RunTestWithSetup(
     func(tx *sql.Tx) {
         tx.Exec("CREATE TABLE ...")
@@ -388,90 +383,66 @@ fixture.RunTestWithSetup(
 )
 ```
 
-### Fixture（低レベルAPI）
+## ⚙️ Configuration
+
+### Recommended API (TestFixture)
+
+When using the recommended API `NewTestFixture()`, configuration is automatically optimized:
 
 ```go
-// 新しいFixtureインスタンスを作成
-func New(config Config) *Fixture
-
-// YAMLファイルから読み込み
-func (f *Fixture) LoadFromFile(filepath string) error
-
-// YAMLデータから読み込み
-func (f *Fixture) LoadFromYAML(data []byte) error
-
-// フィクスチャ挿入
-func (f *Fixture) InsertFixtures() error
-
-// トランザクション管理
-func (f *Fixture) BeginTransaction() error
-func (f *Fixture) CommitTransaction() error
-func (f *Fixture) RollbackTransaction() error
-
-// トランザクション内で関数実行
-func (f *Fixture) WithTransaction(fn func() error) error
-```
-
-## ⚙️ 設定
-
-### 推奨API（TestFixture）
-
-推奨API `NewTestFixture()` を使用する場合、設定は自動的に最適化されます：
-
-```go
-// 自動設定：AutoRollback = true（テスト用途に最適）
+// Automatic configuration: AutoRollback = true (optimal for testing)
 fixture := yamlfix.NewTestFixture(t, db)
 ```
 
-### 低レベルAPI（Fixture）
+### Low-level API (Fixture)
 
-低レベルAPI `New()` を使用する場合は、手動で `Config` を設定できます：
+When using the low-level API `New()`, you can manually configure `Config`:
 
 ```go
-// 手動設定例1: テスト用途（自動ロールバック有効）
+// Manual configuration example 1: For testing (auto rollback enabled)
 config := yamlfix.Config{
     DB:           db,
-    AutoRollback: true, // テスト後に自動でロールバック
+    AutoRollback: true, // Auto rollback after tests
 }
 fixture := yamlfix.New(config)
 
-// 手動設定例2: 本番用途（手動コミット）
+// Manual configuration example 2: For production (manual commit)
 config := yamlfix.Config{
     DB:           db,
-    AutoRollback: false, // 手動でコミット/ロールバックを制御
+    AutoRollback: false, // Manual commit/rollback control
 }
 fixture := yamlfix.New(config)
 
-// 低レベルAPIでの使用例
+// Low-level API usage example
 err := fixture.WithTransaction(func() error {
     return fixture.InsertFixtures()
-}) // AutoRollback=falseの場合は自動コミット
+}) // Auto commit when AutoRollback=false
 ```
 
-### Config フィールド
+### Config Fields
 
 ```go
 type Config struct {
-    DB           *sql.DB // データベース接続
-    AutoRollback bool    // 自動ロールバック有効化
+    DB           *sql.DB // Database connection
+    AutoRollback bool    // Enable automatic rollback
 }
 ```
 
-| フィールド     | 説明                                                                     | 推奨設定                        |
-| -------------- | ------------------------------------------------------------------------ | ------------------------------- |
-| `DB`           | データベース接続                                                         | 必須                            |
-| `AutoRollback` | `true`: テスト後自動ロールバック<br>`false`: 手動でコミット/ロールバック | テスト: `true`<br>本番: `false` |
+| Field          | Description                                                          | Recommended Setting                    |
+| -------------- | -------------------------------------------------------------------- | -------------------------------------- |
+| `DB`           | Database connection                                                  | Required                               |
+| `AutoRollback` | `true`: Auto rollback after tests<br>`false`: Manual commit/rollback | Testing: `true`<br>Production: `false` |
 
-**💡 ヒント**: ほとんどの場合、`NewTestFixture()` の自動設定で十分です。
+**💡 Tip**: In most cases, the automatic configuration of `NewTestFixture()` is sufficient.
 
-## 🗄️ サポートするデータベース
+## 🗄️ Supported Databases
 
-- **SQLite** （テスト環境におすすめ）
+- **SQLite** (recommended for testing)
 - **MySQL**
 - **PostgreSQL**
-- その他 `database/sql` 対応データベース
+- Other `database/sql` compatible databases
 
-## 📁 プロジェクト構成例
+## 📁 Example Project Structure
 
 ```
 your-project/
@@ -484,22 +455,22 @@ your-project/
     └── categories.yaml
 ```
 
-## 🤝 貢献
+## 🤝 Contributing
 
-プルリクエストやIssueは歓迎します！
+Pull requests and issues are welcome!
 
-1. このリポジトリをフォーク
-2. フィーチャーブランチを作成 (`git checkout -b feature/amazing-feature`)
-3. 変更をコミット (`git commit -m 'Add some amazing feature'`)
-4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
-5. プルリクエストを作成
+1. Fork this repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Create a Pull Request
 
-## 📄 ライセンス
+## 📄 License
 
 MIT License
 
-## 🔗 関連リンク
+## 🔗 Related Links
 
-- [Go言語公式サイト](https://golang.org/)
-- [database/sql パッケージ](https://pkg.go.dev/database/sql)
-- [YAML仕様](https://yaml.org/) 
+- [Go Official Website](https://golang.org/)
+- [database/sql Package](https://pkg.go.dev/database/sql)
+- [YAML Specification](https://yaml.org/) 
