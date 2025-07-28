@@ -414,12 +414,55 @@ func (f *Fixture) WithTransaction(fn func() error) error
 
 ## ⚙️ 設定
 
+### 推奨API（TestFixture）
+
+推奨API `NewTestFixture()` を使用する場合、設定は自動的に最適化されます：
+
+```go
+// 自動設定：AutoRollback = true（テスト用途に最適）
+fixture := yamlfix.NewTestFixture(t, db)
+```
+
+### 低レベルAPI（Fixture）
+
+低レベルAPI `New()` を使用する場合は、手動で `Config` を設定できます：
+
+```go
+// 手動設定例1: テスト用途（自動ロールバック有効）
+config := yamlfix.Config{
+    DB:           db,
+    AutoRollback: true, // テスト後に自動でロールバック
+}
+fixture := yamlfix.New(config)
+
+// 手動設定例2: 本番用途（手動コミット）
+config := yamlfix.Config{
+    DB:           db,
+    AutoRollback: false, // 手動でコミット/ロールバックを制御
+}
+fixture := yamlfix.New(config)
+
+// 低レベルAPIでの使用例
+err := fixture.WithTransaction(func() error {
+    return fixture.InsertFixtures()
+}) // AutoRollback=falseの場合は自動コミット
+```
+
+### Config フィールド
+
 ```go
 type Config struct {
     DB           *sql.DB // データベース接続
     AutoRollback bool    // 自動ロールバック有効化
 }
 ```
+
+| フィールド     | 説明                                                                     | 推奨設定                        |
+| -------------- | ------------------------------------------------------------------------ | ------------------------------- |
+| `DB`           | データベース接続                                                         | 必須                            |
+| `AutoRollback` | `true`: テスト後自動ロールバック<br>`false`: 手動でコミット/ロールバック | テスト: `true`<br>本番: `false` |
+
+**💡 ヒント**: ほとんどの場合、`NewTestFixture()` の自動設定で十分です。
 
 ## 🗄️ サポートするデータベース
 
