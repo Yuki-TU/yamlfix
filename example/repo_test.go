@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"testing"
-	"time"
 
 	"github.com/Yuki-TU/yamlfix"
 	_ "github.com/mattn/go-sqlite3"
@@ -34,7 +33,7 @@ func TestCreateUser(t *testing.T) {
 	defer db.Close()
 
 	fixture := yamlfix.NewTestFixture(t, db)
-	fixture.SetupTest()
+	fixture.SetupTest("testdata/users.yaml")
 	defer fixture.TearDownTest()
 
 	repo := NewRepository()
@@ -76,6 +75,7 @@ func TestCreateUser(t *testing.T) {
 					createUsersTable(tx, t)
 				},
 				func(tx *sql.Tx) {
+					// フィクスチャデータ（id: 1, 2）は自動挿入済み
 					created, err := repo.CreateUser(ctx, tx, tt.user)
 					if (err != nil) != tt.wantErr {
 						t.Fatalf("CreateUser() error = %v, wantErr %v", err, tt.wantErr)
@@ -98,7 +98,7 @@ func TestGetUser(t *testing.T) {
 	defer db.Close()
 
 	fixture := yamlfix.NewTestFixture(t, db)
-	fixture.SetupTest()
+	fixture.SetupTest("testdata/users.yaml")
 	defer fixture.TearDownTest()
 
 	repo := NewRepository()
@@ -111,8 +111,8 @@ func TestGetUser(t *testing.T) {
 		validate func(t *testing.T, got User, want User)
 	}{
 		"存在するユーザーの取得": {
-			userID: 100,
-			want:   User{ID: 100, Name: "テストユーザー", Email: "test@example.com"},
+			userID: 1, // フィクスチャデータのid: 1（山田太郎）を使用
+			want:   User{ID: 1, Name: "山田太郎", Email: "yamada@example.com"},
 			validate: func(t *testing.T, got User, want User) {
 				if got.ID != want.ID {
 					t.Errorf("ID - 期待値: %d, 実際の値: %d", want.ID, got.ID)
@@ -150,19 +150,9 @@ func TestGetUser(t *testing.T) {
 			fixture.RunTestWithSetup(
 				func(tx *sql.Tx) {
 					createUsersTable(tx, t)
-					// 存在するユーザーのテストケースの場合のみテストデータを挿入
-					if tt.userID == 100 {
-						testTime := time.Now()
-						_, err := tx.Exec(`
-							INSERT INTO users (id, name, email, created_at) 
-							VALUES (100, 'テストユーザー', 'test@example.com', ?)
-						`, testTime)
-						if err != nil {
-							t.Fatal(err)
-						}
-					}
 				},
 				func(tx *sql.Tx) {
+					// フィクスチャデータが自動挿入済み（id: 1=山田太郎, id: 2=田中花子）
 					got, err := repo.GetUser(ctx, tx, tt.userID)
 					if (err != nil) != tt.wantErr {
 						t.Fatalf("GetUser() error = %v, wantErr %v", err, tt.wantErr)
@@ -185,8 +175,7 @@ func TestCreateAndGetUser(t *testing.T) {
 	defer db.Close()
 
 	fixture := yamlfix.NewTestFixture(t, db)
-	fixture.SetupTest()
-	defer fixture.TearDownTest()
+	fixture.SetupTest("testdata/users.yaml")
 
 	repo := NewRepository()
 	ctx := context.Background()
@@ -209,6 +198,8 @@ func TestCreateAndGetUser(t *testing.T) {
 					createUsersTable(tx, t)
 				},
 				func(tx *sql.Tx) {
+					// フィクスチャデータ（id: 1, 2）は自動挿入済み
+
 					// ユーザー作成
 					created, err := repo.CreateUser(ctx, tx, tt.user)
 					if err != nil {
