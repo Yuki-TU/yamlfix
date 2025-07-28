@@ -46,13 +46,13 @@ func TestCreateUser(t *testing.T) {
 			user: User{Name: "山田太郎", Email: "yamada@example.com"},
 			validate: func(t *testing.T, created User, original User) {
 				if created.ID == 0 {
-					t.Error("IDが設定されていません")
+					t.Error("ID is not set")
 				}
 				if created.Name != original.Name {
-					t.Errorf("名前 - 期待値: %s, 実際の値: %s", original.Name, created.Name)
+					t.Errorf("name - expected: %s, got: %s", original.Name, created.Name)
 				}
 				if created.Email != original.Email {
-					t.Errorf("メール - 期待値: %s, 実際の値: %s", original.Email, created.Email)
+					t.Errorf("email - expected: %s, got: %s", original.Email, created.Email)
 				}
 			},
 		},
@@ -104,16 +104,16 @@ func TestGetUser(t *testing.T) {
 			want:   User{ID: 1, Name: "山田太郎", Email: "yamada@example.com"},
 			validate: func(t *testing.T, got User, want User) {
 				if got.ID != want.ID {
-					t.Errorf("ID - 期待値: %d, 実際の値: %d", want.ID, got.ID)
+					t.Errorf("ID - expected: %d, got: %d", want.ID, got.ID)
 				}
 				if got.Name != want.Name {
-					t.Errorf("名前 - 期待値: %s, 実際の値: %s", want.Name, got.Name)
+					t.Errorf("name - expected: %s, got: %s", want.Name, got.Name)
 				}
 				if got.Email != want.Email {
-					t.Errorf("メール - 期待値: %s, 実際の値: %s", want.Email, got.Email)
+					t.Errorf("email - expected: %s, got: %s", want.Email, got.Email)
 				}
 				if got.CreatedAt.IsZero() {
-					t.Error("作成時刻が設定されていません")
+					t.Error("created_at is not set")
 				}
 			},
 		},
@@ -122,13 +122,13 @@ func TestGetUser(t *testing.T) {
 			want:   User{}, // 空のユーザー
 			validate: func(t *testing.T, got User, want User) {
 				if got.ID != 0 {
-					t.Errorf("存在しないユーザーのID - 期待値: 0, 実際の値: %d", got.ID)
+					t.Errorf("non-existent user ID - expected: 0, got: %d", got.ID)
 				}
 				if got.Name != "" {
-					t.Errorf("存在しないユーザーの名前 - 期待値: 空文字, 実際の値: %s", got.Name)
+					t.Errorf("non-existent user name - expected: empty, got: %s", got.Name)
 				}
 				if got.Email != "" {
-					t.Errorf("存在しないユーザーのメール - 期待値: 空文字, 実際の値: %s", got.Email)
+					t.Errorf("non-existent user email - expected: empty, got: %s", got.Email)
 				}
 			},
 		},
@@ -203,13 +203,13 @@ func TestCreateAndGetUser(t *testing.T) {
 
 					// 一致確認
 					if retrieved.ID != created.ID {
-						t.Errorf("ID - 期待値: %d, 実際の値: %d", created.ID, retrieved.ID)
+						t.Errorf("ID - expected: %d, got: %d", created.ID, retrieved.ID)
 					}
 					if retrieved.Name != created.Name {
-						t.Errorf("名前 - 期待値: %s, 実際の値: %s", created.Name, retrieved.Name)
+						t.Errorf("name - expected: %s, got: %s", created.Name, retrieved.Name)
 					}
 					if retrieved.Email != created.Email {
-						t.Errorf("メール - 期待値: %s, 実際の値: %s", created.Email, retrieved.Email)
+						t.Errorf("email - expected: %s, got: %s", created.Email, retrieved.Email)
 					}
 				},
 			)
