@@ -312,13 +312,6 @@ func (tf *TestFixture) GetTransaction() *sql.Tx
 func (tf *TestFixture) TearDownTest()
 ```
 
-**Deprecated Methods (kept for compatibility)**
-```go
-// Deprecated: Use RunTestWithSetup or RunTest instead
-func (tf *TestFixture) ExecInTransaction(query string, args ...interface{})
-func (tf *TestFixture) QueryInTransaction(query string, args ...interface{}) *sql.Rows
-func (tf *TestFixture) QueryRowInTransaction(query string, args ...interface{}) *sql.Row
-```
 
 ## 🎯 Best Practices
 
@@ -353,26 +346,26 @@ fixture.RunTestWithCustomSetup(func(tx *sql.Tx) {
 
 ### 🆚 Old vs New API Comparison
 
-| Feature            | Old API                             | New API          |
-| ------------------ | ----------------------------------- | ---------------- |
-| Fixture Insertion  | `fixture.InsertTestData()` required | Automatic        |
-| Transaction Access | `fixture.GetTransaction()`          | Direct parameter |
-| SQL Execution      | `fixture.ExecInTransaction()`       | `tx.Exec()`      |
-| Error Handling     | Automatic in helper methods         | Explicit control |
-| Readability        | Verbose                             | Concise          |
-| Flexibility        | Limited                             | High             |
+| Feature            | Old API                             | New API              |
+| ------------------ | ----------------------------------- | -------------------- |
+| Fixture Insertion  | `fixture.InsertTestData()` required | Automatic            |
+| Transaction Access | `fixture.GetTransaction()`          | Direct parameter     |
+| SQL Execution      | Helper methods                      | `tx.Exec()` directly |
+| Error Handling     | Automatic in helper methods         | Explicit control     |
+| Readability        | Verbose                             | Concise              |
+| Flexibility        | Limited                             | High                 |
 
 ### 💡 Migration Guide
 
 ```go
-// Old API
+// Old API (v0.1.x)
 fixture.RunTest(func() {
     fixture.ExecInTransaction("CREATE TABLE ...")
     fixture.InsertTestData()
     rows := fixture.QueryInTransaction("SELECT ...")
 })
 
-// New API
+// New API (v0.3.0+)
 fixture.RunTestWithSetup(
     func(tx *sql.Tx) {
         tx.Exec("CREATE TABLE ...")
