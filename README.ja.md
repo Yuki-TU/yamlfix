@@ -110,7 +110,7 @@ func TestUserRepository(t *testing.T) {
                 t.Fatal(err)
             }
 
-                    if len(users) != 2 {
+        if len(users) != 2 {
             t.Errorf("expected: 2, got: %d", len(users))
         }
         },
@@ -319,13 +319,7 @@ func (tf *TestFixture) GetTransaction() *sql.Tx
 func (tf *TestFixture) TearDownTest()
 ```
 
-**廃止予定のメソッド（互換性のため残存）**
-```go
-// 非推奨：RunTestWithSetupまたはRunTestを使用してください
-func (tf *TestFixture) ExecInTransaction(query string, args ...interface{})
-func (tf *TestFixture) QueryInTransaction(query string, args ...interface{}) *sql.Rows
-func (tf *TestFixture) QueryRowInTransaction(query string, args ...interface{}) *sql.Row
-```
+
 
 ## 🎯 使い方のベストプラクティス
 
@@ -364,7 +358,7 @@ fixture.RunTestWithCustomSetup(func(tx *sql.Tx) {
 | -------------------- | ------------------------------- | ------------------ |
 | フィクスチャ挿入     | `fixture.InsertTestData()` 必須 | 自動実行           |
 | トランザクション取得 | `fixture.GetTransaction()`      | 引数で直接受け取り |
-| SQL実行              | `fixture.ExecInTransaction()`   | `tx.Exec()`        |
+| SQL実行              | ヘルパーメソッド                | `tx.Exec()` 直接   |
 | エラーハンドリング   | ヘルパーメソッド内で自動        | 明示的制御         |
 | 可読性               | 冗長                            | 簡潔               |
 | 柔軟性               | 限定的                          | 高い               |
@@ -372,14 +366,14 @@ fixture.RunTestWithCustomSetup(func(tx *sql.Tx) {
 ### 💡 移行ガイド
 
 ```go
-// 旧API
+// 旧API (v0.1.x)
 fixture.RunTest(func() {
     fixture.ExecInTransaction("CREATE TABLE ...")
     fixture.InsertTestData()
     rows := fixture.QueryInTransaction("SELECT ...")
 })
 
-// 新API
+// 新API (v0.3.0+)
 fixture.RunTestWithSetup(
     func(tx *sql.Tx) {
         tx.Exec("CREATE TABLE ...")

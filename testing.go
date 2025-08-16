@@ -100,37 +100,6 @@ func (tf *TestFixture) InsertTestData() {
 	}
 }
 
-// ExecInTransaction はトランザクション内でSQLを実行する
-func (tf *TestFixture) ExecInTransaction(query string, args ...interface{}) {
-	tf.t.Helper()
-
-	executor := tf.getExecutor()
-	_, err := executor.Exec(query, args...)
-	if err != nil {
-		tf.t.Fatalf("failed to execute SQL: %v", err)
-	}
-}
-
-// QueryInTransaction はトランザクション内でクエリを実行する
-func (tf *TestFixture) QueryInTransaction(query string, args ...interface{}) *sql.Rows {
-	tf.t.Helper()
-
-	executor := tf.getExecutor()
-	rows, err := executor.Query(query, args...)
-	if err != nil {
-		tf.t.Fatalf("failed to execute query: %v", err)
-	}
-	return rows
-}
-
-// QueryRowInTransaction はトランザクション内で単一行クエリを実行する
-func (tf *TestFixture) QueryRowInTransaction(query string, args ...interface{}) *sql.Row {
-	tf.t.Helper()
-
-	executor := tf.getExecutor()
-	return executor.QueryRow(query, args...)
-}
-
 // HasTransaction はトランザクションが開始されているかを確認する
 func (tf *TestFixture) HasTransaction() bool {
 	return tf.tx != nil
